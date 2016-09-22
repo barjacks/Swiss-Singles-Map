@@ -6,10 +6,11 @@ body{
 background: #ccc;
 }
 .boundary {
-  fill: red;
+  fill: none;
+  stroke: red;
 }
 .counties {
-/*  fill: none;*/
+  fill: none;
 }
 
 .states {
@@ -62,8 +63,8 @@ background: #ccc;
 
 </style>
 <svg width="960" height="600"></svg>
-<script src="//d3js.org/d3.v4.min.js"></script>
-<script src="//d3js.org/topojson.v1.min.js"></script>
+<script src="js/d3.min.js"></script>
+<script src="js/topojson.v1.min.js"></script>
 <script type="text/javascript" src="js/tooltip.js"></script>
 <script>
 
@@ -110,6 +111,7 @@ function ready(error, ch) {
   }else{
     console.log('okay');
   }
+  console.log(ch);
 
   svg.append("g")
       .attr("class", "counties")
@@ -118,9 +120,9 @@ function ready(error, ch) {
     .enter().append("path")
     .attr("class", "boundary")
       .attr("fill", function(d) { return quantize(italianRateById.get(d.id)); })
-      .attr("d", path)
+      .attr("d", path)/*
       .on("mouseover", tip.show)
-      .on("mouseout", tip.hide);
+      .on("mouseout", tip.hide);*/
 
 
 /*  svg.append("path")
