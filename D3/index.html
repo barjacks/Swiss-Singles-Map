@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Les célibataires en Suisse</title>
+<link rel="stylesheet" href="css/ion.rangeSlider.css" />
+<style>
+/* added for zoom/pan - to be enhanced */
+body, html {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+#toolbar {
+  position: fixed;
+  z-index: 20000;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 60px;
+  background: white;
+  border-bottom: 1px solid #333;
+}
+
+svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+/* end added for   */
+
+body{
+background: #ccc;
+}
+.boundary {
+  stroke: white;
+  stroke-width: .5px;
+}
+.counties {
+  fill: none;
+}
+
+.states {
+  fill: none;
+  stroke: #fff;
+  stroke-linejoin: round;
+}
+
+.q0-9 { fill:rgb(247,251,255); }
+.q1-9 { fill:rgb(222,235,247); }
+.q2-9 { fill:rgb(198,219,239); }
+.q3-9 { fill:rgb(158,202,225); }
+.q4-9 { fill:rgb(107,174,214); }
+.q5-9 { fill:rgb(66,146,198); }
+.q6-9 { fill:rgb(33,113,181); }
+.q7-9 { fill:rgb(8,81,156); }
+.q8-9 { fill:rgb(8,48,107); }
+
+/* Tooltip */
+
+.d3-tip {
+  line-height: 1;
+  font-weight: bold;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  border-radius: 2px;
+}
+
+/* Creates a small triangle extender for the tooltip */
+.d3-tip:after {
+  box-sizing: border-box;
+  display: inline;
+  font-size: 10px;
+  width: 100%;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.8);
+  content: "\25BC";
+  position: absolute;
+  text-align: center;
+}
+
+/* Style northward tooltips differently */
+.d3-tip.n:after {
+  margin: -1px 0 0 0;
+  top: 100%;
+  left: 0;
+}
+</style>
+</head>
+<body>
+  <div id="toolbar">
+    <input type="text" id="range_slider" />
+  </div>
+
+
+<script src="js/d3.min.js"></script>
+<script src="js/topojson.v1.min.js"></script>
+<script type="text/javascript" src="js/tooltip.js"></script>
+<script src="js/lang.fr.js"></script>
+<script src="js/jquery-1.12.4.min.js"></script>
+<script src="js/ion.rangeSlider.js"></script>
+
+<script>
+window.onload=function(){
+  var tip = d3.tip()
+    .attr('class', 'd3-tip')
+    .offset([-10, 0])
+    .html(function(d) {
+      var townName = nameById.get(d.properties.OBJECTVAL);
+      if (!townName){
+        townName = d.properties.GEMNAME + ' (id='+d.properties.OBJECTVAL+')';
+      }
+      var singleMen = singleMenById.get(d.properties.OBJECTVAL),
+        singleString = lang.singleMen;
+      if (singleMen < 0){
+        singleMen *= -1;
+        singleString = lang.singleWomen;
+      }
+      return "<strong>" + singleString + " " + lang.in + " " + townName + ":</strong> <span style='color:red'>" + singleMen + "</span>";
+    });
+
+
+
+
+  /*
+  var zoom = d3.zoom
+      .translate(projection.translate())
+      .scale(projection.scale())
+      .scaleExtent([height, 8 * height])
+      .on("zoom", zoomed);
+  */
+
+  var svg = d3.select("body")
+    .append("svg")
+    .attr("width", "100%")
+    .attr("height", "100%")
+    .call(d3.zoom().on("zoom", function () {
+        svg.attr("transform", d3.event.transform)
+    }))
+    .append("g")
+
+
+    width = +svg.attr("width"),
+    height = +svg.attr("height");
+
+  svg.call(tip);
+
+
+  var nameById = d3.map();
+  var singleMenById = d3.map();
+
+  /*var quantize = d3.scaleQuantize()
+      .domain([-50, 50])
+      .range(['blue', 'purple', 'red']);
+  -> maybe the best way, but needs more scales
+      */
+
+  var quantize = d3.scaleLinear()
+      .domain([-50, 0, 50]) // 0, pivot, max
+      .range(['red', 'white', 'blue']);
+
+
+  var projection = d3.geoMercator()
+      .scale(10000)
+      .center([8, 46.7])
+      .translate([150, 300]);
+//      .translate([width / -2, height / -2]);
+
+
+  var path = d3.geoPath()
+      .projection(projection);
+
+
+  d3.queue()
+      .defer(d3.json, "gemeinden.json")
+      .defer(d3.csv, "final_dataset_totals_id", function(d) {
+  	    nameById.set(d.GDENR, d.Gemeinde);
+        singleMenById.set(d.GDENR, d['Ledige Männer Total +/-']);
+      	})
+      .await(ready);
+
+  function ready(error, ch) {
+    if (error)
+    {
+      console.log('shit');
+      throw error;
+    }else{
+      console.log('okay');
+    }
+    console.log(ch);
+
+    svg.append("g")
+        .attr("class", "counties")
+      .selectAll("path")
+        .data(topojson.feature(ch, ch.objects.gemeinden).features)
+      .enter().append("path")
+      .attr("class", "boundary")
+        .attr("fill", function(d) {
+          if(!singleMenById.get(d.properties.OBJECTVAL)){
+            return 'black';
+          }
+          else{
+  //        console.log(singleMenById.get(d.properties.OBJECTVAL));
+          return quantize(singleMenById.get(d.properties.OBJECTVAL));
+          }
+
+        })
+        .attr("d", path)
+        .on("mouseover", tip.show)
+        .on("mouseout", tip.hide);
+
+
+  }
+
+  /*
+  from http://bl.ocks.org/mbostock/2206340
+  */
+
+  function clicked(d) {
+    var centroid = path.centroid(d),
+        translate = projection.translate();
+
+    projection.translate([
+      translate[0] - centroid[0] + width / 2,
+      translate[1] - centroid[1] + height / 2
+    ]);
+
+    zoom.translate(projection.translate());
+
+    g.selectAll("path").transition()
+        .duration(700)
+        .attr("d", path);
+  }
+
+  function zoomed() {
+    projection.translate(d3.event.translate).scale(d3.event.scale);
+    g.selectAll("path").attr("d", path);
+  }
+
+
+  // We initialize the range slider
+  $("#range_slider").ionRangeSlider({
+    type: "double",
+    grid: true,
+    min: 24,
+    max: 94,
+    grid_num: 14,
+    min_interval: 5,
+    from: 24,
+    to: 29,
+    step: 5,
+    drag_interval: true,
+    postfix: " ans",
+    onFinish: function(){console.log('Finish with value')}
+  });
+
+
+
+}
+
+</script>
+</body>
+</html>
