@@ -1,0 +1,46 @@
+<!doctype html>
+<html>
+<head>
+    <link rel="stylesheet" href="css/ion.rangeSlider.css" />
+    <style>
+    #toolbar{
+      position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 40px;
+  background: white;
+  border-bottom: 1px solid #333;
+  }
+  </style>
+</head>
+<body>
+
+<a href="https://github.com/IonDen/ion.rangeSlider/blob/master/css/ion.rangeSlider.skinNice.css">https://github.com/IonDen/ion.rangeSlider/blob/master/css/ion.rangeSlider.skinNice.css</a>
+
+<div id="toolbar"><input type="text" id="range_03" name="example_name" value="" /></div>
+
+<script src="js/jquery-1.12.4.min.js"></script>
+<script src="js/ion.rangeSlider.js"></script>
+<script type="text/javascript">
+$("#range_03").ionRangeSlider({
+    type: "double",
+    grid: true,
+    min: 24,
+    max: 94,
+    grid_num: 14,
+    min_interval: 5,
+    from: 24,
+    to: 29,
+    step: 5,
+    drag_interval: true,
+    postfix: " ans",
+    onFinish: function(){console.log('Finish with value')}
+});
+
+
+//values
+</script>
+
+</body>
+</html>
