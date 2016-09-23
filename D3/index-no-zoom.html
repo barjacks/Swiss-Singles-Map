@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+body{
+background: #ccc;
+}
+.boundary {
+  stroke: transparent;
+}
+.counties {
+  fill: none;
+}
+
+.states {
+  fill: none;
+  stroke: #fff;
+  stroke-linejoin: round;
+}
+
+.q0-9 { fill:rgb(247,251,255); }
+.q1-9 { fill:rgb(222,235,247); }
+.q2-9 { fill:rgb(198,219,239); }
+.q3-9 { fill:rgb(158,202,225); }
+.q4-9 { fill:rgb(107,174,214); }
+.q5-9 { fill:rgb(66,146,198); }
+.q6-9 { fill:rgb(33,113,181); }
+.q7-9 { fill:rgb(8,81,156); }
+.q8-9 { fill:rgb(8,48,107); }
+
+/* Tooltip */
+
+.d3-tip {
+  line-height: 1;
+  font-weight: bold;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  border-radius: 2px;
+}
+
+/* Creates a small triangle extender for the tooltip */
+.d3-tip:after {
+  box-sizing: border-box;
+  display: inline;
+  font-size: 10px;
+  width: 100%;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.8);
+  content: "\25BC";
+  position: absolute;
+  text-align: center;
+}
+
+/* Style northward tooltips differently */
+.d3-tip.n:after {
+  margin: -1px 0 0 0;
+  top: 100%;
+  left: 0;
+}
+
+
+</style>
+<svg width="960" height="600"></svg>
+<script src="js/d3.min.js"></script>
+<script src="js/topojson.v1.min.js"></script>
+<script type="text/javascript" src="js/tooltip.js"></script>
+<script>
+
+var tip = d3.tip()
+  .attr('class', 'd3-tip')
+  .offset([-10, 0])
+  .html(function(d) {
+    var townName = nameById.get(d.properties.OBJECTVAL);
+    if (!townName){
+      townName = d.properties.GEMNAME + ' (id='+d.properties.OBJECTVAL+')';
+    }
+    return "<strong>Single [men/women] in " + townName + ":</strong> <span style='color:red'>" + singleMenById.get(d.properties.OBJECTVAL) + "</span>";
+  });
+
+
+
+
+/*
+var zoom = d3.zoom
+    .translate(projection.translate())
+    .scale(projection.scale())
+    .scaleExtent([height, 8 * height])
+    .on("zoom", zoomed);
+*/
+
+var svg = d3.select("svg"),
+    width = +svg.attr("width"),
+    height = +svg.attr("height");
+
+svg.call(tip);
+
+/*
+var zoom = d3.zoom()
+    .translateExtent([[0, 0], svg.size])
+    .scaleExtent([svg.transform.k, svg.transform.k * 2])
+    .on("zoom", zoomed);
+
+svg.call(App.zoom);
+*/
+
+/*
+var g = svg.append("g")
+    .call(zoom);
+*/
+
+var nameById = d3.map();
+var singleMenById = d3.map();
+
+/*var quantize = d3.scaleQuantize()
+    .domain([-50, 50])
+    .range(['blue', 'purple', 'red']);
+-> maybe the best way, but needs more scales
+    */
+
+var quantize = d3.scaleLinear()
+    .domain([-50, 0, 50]) // 0, pivot, max
+    .range(['blue', 'white', 'red']);
+
+
+var projection = d3.geoMercator()
+    .scale(10000)
+    .center([8, 46.7])
+    .translate([width / 2, height / 2]);
+
+
+var path = d3.geoPath()
+    .projection(projection);
+
+
+d3.queue()
+    .defer(d3.json, "gemeinden.json")
+    .defer(d3.csv, "final_dataset_totals_id", function(d) {
+	    nameById.set(d.GDENR, d.Gemeinde);
+      singleMenById.set(d.GDENR, d['Ledige Männer Total +/-']);
+    	})
+    .await(ready);
+
+function ready(error, ch) {
+  if (error)
+  {
+    console.log('shit');
+    throw error;
+  }else{
+    console.log('okay');
+  }
+  console.log(ch);
+
+  svg.append("g")
+      .attr("class", "counties")
+    .selectAll("path")
+      .data(topojson.feature(ch, ch.objects.gemeinden).features)
+    .enter().append("path")
+    .attr("class", "boundary")
+      .attr("fill", function(d) {
+        if(!singleMenById.get(d.properties.OBJECTVAL)){
+          return 'black';
+        }
+        else{
+//        console.log(singleMenById.get(d.properties.OBJECTVAL));
+        return quantize(singleMenById.get(d.properties.OBJECTVAL));
+        }
+
+      })
+      .attr("d", path)
+      .on("mouseover", tip.show)
+      .on("mouseout", tip.hide);
+
+    console.log(singleMenById);
+
+/*  svg.append("path")
+      .datum(topojson.mesh(us, us.objects.states, function(a, b) { return a !== b; }))
+      .attr("class", "states")
+      .attr("d", path);*/
+}
+
+/*
+from http://bl.ocks.org/mbostock/2206340
+*/
+
+function clicked(d) {
+  var centroid = path.centroid(d),
+      translate = projection.translate();
+
+  projection.translate([
+    translate[0] - centroid[0] + width / 2,
+    translate[1] - centroid[1] + height / 2
+  ]);
+
+  zoom.translate(projection.translate());
+
+  g.selectAll("path").transition()
+      .duration(700)
+      .attr("d", path);
+}
+
+function zoomed() {
+  projection.translate(d3.event.translate).scale(d3.event.scale);
+  g.selectAll("path").attr("d", path);
+}
+
+
+</script>
